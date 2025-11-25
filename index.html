@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <title>今天吃什么？移动版</title>
+    <style>
+      :root {
+        --primary-color: #ff7f50;
+        --primary-dark: #e6683c;
+        --secondary-color: #2ec4b6;
+        --bg-gradient: linear-gradient(135deg, #f6d365 0%, #fda085 100%);
+        --card-bg: #ffffff;
+        --text-color: #333;
+        --shadow-soft: 0 4px 20px rgba(0, 0, 0, 0.08);
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+          'Helvetica Neue', Arial, sans-serif;
+        background: var(--bg-gradient);
+        min-height: 100vh;
+        margin: 0;
+        padding: 10px; /* 手机端减小外边距 */
+        display: flex;
+        justify-content: center;
+        align-items: center; /* 垂直居中 */
+        box-sizing: border-box;
+        color: var(--text-color);
+        -webkit-tap-highlight-color: transparent; /* 去除点击高亮 */
+      }
+
+      .main-card {
+        background: var(--card-bg);
+        padding: 25px 15px; /* 减小内边距 */
+        border-radius: 20px;
+        box-shadow: var(--shadow-soft);
+        text-align: center;
+        width: 100%;
+        max-width: 450px; /* 电脑端最大宽度 */
+        position: relative;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+
+      h1 {
+        margin: 0 0 20px 0;
+        font-size: 1.5rem; /* 调整标题大小 */
+        font-weight: 800;
+        color: #444;
+      }
+
+      /* --- 转盘核心适配 --- */
+      .wheel-wrapper {
+        position: relative;
+        width: 85vw; /* 宽度占屏幕85% */
+        max-width: 320px; /* 最大不超过320px */
+        aspect-ratio: 1 / 1; /* 保持正方形比例 */
+        margin: 0 auto 25px;
+      }
+
+      .canvas-container {
+        width: 100%;
+        height: 100%;
+        border-radius: 50%;
+        border: 6px solid white;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.15);
+        box-sizing: border-box;
+        overflow: hidden;
+        background: white;
+        /* 解决移动端Safari圆角溢出bug */
+        transform: translateZ(0);
+      }
+
+      #canvas {
+        width: 100%;
+        height: 100%;
+        display: block;
+        border-radius: 50%;
+        transition: transform 4s cubic-bezier(0.17, 0.84, 0.44, 1);
+      }
+
+      /* 中心装饰 */
+      .wheel-hub {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 18%; /* 相对尺寸 */
+        height: 18%;
+        background: white;
+        border-radius: 50%;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        z-index: 5;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-size: 1.5rem;
+      }
+
+      /* 指针 */
+      .pointer {
+        position: absolute;
+        top: -6%; /* 相对位置 */
+        left: 50%;
+        transform: translateX(-50%) rotate(45deg);
+        width: 12%; /* 相对尺寸 */
+        height: 12%;
+        background: var(--primary-color);
+        border-radius: 50% 50% 0 50%;
+        box-shadow: 0 3px 5px rgba(0, 0, 0, 0.2);
+        z-index: 10;
+      }
+      .pointer::after {
+        content: '';
+        position: absolute;
+        width: 25%;
+        height: 25%;
+        background: white;
+        border-radius: 50%;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+      }
+
+      /* --- 按钮与输入 --- */
+      .controls-area {
+        width: 100%;
+        margin-bottom: 20px;
+      }
+
+      #spinBtn {
+        background: linear-gradient(
+          to right,
+          var(--primary-color),
+          var(--primary-dark)
+        );
+        color: white;
+        font-size: 1.1rem;
+        padding: 14px 0;
+        border: none;
+        border-radius: 50px;
+        cursor: pointer;
+        font-weight: bold;
+        box-shadow: 0 8px 15px -5px rgba(255, 127, 80, 0.5);
+        width: 90%; /* 按钮宽度 */
+        margin-bottom: 20px;
+        /* 禁止文字被选中 */
+        user-select: none;
+        -webkit-user-select: none;
+      }
+
+      #spinBtn:active {
+        transform: scale(0.98);
+      }
+
+      #spinBtn:disabled {
+        background: #ddd;
+        box-shadow: none;
+        color: #999;
+      }
+
+      .input-group {
+        display: flex;
+        justify-content: center;
+        gap: 8px;
+        width: 95%;
+        margin: 0 auto;
+      }
+
+      input {
+        flex: 1;
+        padding: 10px 15px;
+        border: 2px solid #eee;
+        border-radius: 50px;
+        outline: none;
+        /* 16px防止iOS缩放 */
+        font-size: 16px;
+        background: #fafafa;
+      }
+
+      input:focus {
+        border-color: var(--secondary-color);
+        background: white;
+      }
+
+      #addBtn {
+        padding: 0 20px;
+        background-color: var(--secondary-color);
+        color: white;
+        border: none;
+        border-radius: 50px;
+        font-weight: bold;
+        font-size: 14px;
+        white-space: nowrap;
+      }
+
+      /* --- 选项列表 --- */
+      .options-list {
+        list-style: none;
+        padding: 0;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        justify-content: center;
+        width: 100%;
+        max-height: 150px; /* 限制高度防止占满屏幕 */
+        overflow-y: auto; /* 允许列表滚动 */
+      }
+
+      .tag {
+        background: #f0f2f5;
+        color: #555;
+        padding: 6px 12px;
+        border-radius: 15px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 14px;
+      }
+
+      .delete-btn {
+        color: #ff6b6b;
+        background: rgba(0, 0, 0, 0.05);
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-size: 12px;
+        line-height: 1;
+      }
+
+      /* --- 弹窗适配 --- */
+      #resultModal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.6);
+        backdrop-filter: blur(3px);
+        display: none;
+        justify-content: center;
+        align-items: center;
+        z-index: 100;
+        padding: 20px; /* 防止贴边 */
+      }
+
+      .modal-content {
+        background: white;
+        padding: 30px 20px;
+        border-radius: 20px;
+        text-align: center;
+        width: 100%;
+        max-width: 300px;
+        animation: popUp 0.3s cubic-bezier(0.17, 0.67, 0.27, 1.26);
+      }
+
+      @keyframes popUp {
+        from {
+          transform: scale(0.8);
+          opacity: 0;
+        }
+        to {
+          transform: scale(1);
+          opacity: 1;
+        }
+      }
+
+      .modal-result {
+        font-size: 2rem;
+        color: var(--primary-color);
+        margin: 15px 0 25px;
+        font-weight: 900;
+        word-break: break-all; /* 防止长词撑破 */
+      }
+
+      .modal-btn {
+        padding: 12px 0;
+        width: 80%;
+        background: var(--secondary-color);
+        color: white;
+        border: none;
+        border-radius: 50px;
+        font-size: 16px;
+        font-weight: bold;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="main-card">
+      <h1>🍽️ 今天吃什么？</h1>
+
+      <div class="wheel-wrapper">
+        <div class="pointer"></div>
+        <div class="wheel-hub">😋</div>
+        <div class="canvas-container">
+          <canvas
+            id="canvas"
+            width="800"
+            height="800"
+          ></canvas>
+        </div>
+      </div>
+
+      <div class="controls-area">
+        <button
+          id="spinBtn"
+          onclick="spin()"
+          >👉 开始决定 👈</button
+        >
+
+        <div class="input-group">
+          <input
+            type="text"
+            id="newOption"
+            placeholder="加个菜 (如: 烤肉)"
+            autocomplete="off"
+          />
+          <button
+            id="addBtn"
+            onclick="addOption()"
+            >添加</button
+          >
+        </div>
+      </div>
+
+      <ul
+        class="options-list"
+        id="list"
+      >
+      </ul>
+    </div>
+
+    <div
+      id="resultModal"
+      onclick="closeModal()"
+    >
+      <div
+        class="modal-content"
+        onclick="event.stopPropagation()"
+      >
+        <div style="font-size: 3rem; margin-bottom: 10px">🎉</div>
+        <div style="color: #888">天意决定今晚吃</div>
+        <div
+          class="modal-result"
+          id="finalResult"
+          >...</div
+        >
+        <button
+          class="modal-btn"
+          onclick="closeModal()"
+          >完美！</button
+        >
+      </div>
+    </div>
+
+    <script>
+      // 默认选项
+      let options = [
+        '麦当劳',
+        '火锅',
+        '烧烤',
+        '轻食沙拉',
+        '麻辣烫',
+        '日料寿司',
+        '兰州拉面',
+        'KFC'
+      ]
+
+      // 更加鲜亮的配色
+      const colors = [
+        '#FFADAD',
+        '#FFD6A5',
+        '#FDFFB6',
+        '#CAFFBF',
+        '#9BF6FF',
+        '#A0C4FF',
+        '#BDB2FF',
+        '#FFC6FF'
+      ]
+
+      const canvas = document.getElementById('canvas')
+      const ctx = canvas.getContext('2d')
+      const listEl = document.getElementById('list')
+
+      let currentRotation = 0
+      let isSpinning = false
+
+      // 页面加载
+      window.onload = function () {
+        renderList()
+        drawWheel()
+      }
+
+      // 监听回车键 (手机软键盘上的"前往"或"换行"通常触发keycode 13)
+      document
+        .getElementById('newOption')
+        .addEventListener('keypress', function (e) {
+          if (e.key === 'Enter') addOption()
+        })
+
+      function drawWheel() {
+        const num = options.length
+        if (num === 0) return
+
+        // 增加分辨率以保证在高清手机屏上的清晰度
+        const size = 800
+        const center = size / 2
+        const radius = size / 2 - 10 // 留一点边距
+        const arcSize = (2 * Math.PI) / num
+
+        ctx.clearRect(0, 0, size, size)
+
+        for (let i = 0; i < num; i++) {
+          const angle = i * arcSize - Math.PI / 2
+
+          ctx.beginPath()
+          ctx.fillStyle = colors[i % colors.length]
+          ctx.moveTo(center, center)
+          ctx.arc(center, center, radius, angle, angle + arcSize)
+          ctx.fill()
+
+          // 分割线
+          ctx.strokeStyle = '#ffffff'
+          ctx.lineWidth = 8 // 加粗分割线
+          ctx.stroke()
+
+          ctx.save()
+          ctx.translate(center, center)
+          ctx.rotate(angle + arcSize / 2)
+          ctx.textAlign = 'right'
+          ctx.fillStyle = '#4a4a4a'
+          // 根据选项数量动态调整字号，避免太挤
+          let fontSize = num > 8 ? 30 : 40
+          ctx.font = `bold ${fontSize}px sans-serif`
+          ctx.fillText(options[i], radius - 40, 15)
+          ctx.restore()
+        }
+      }
+
+      function renderList() {
+        listEl.innerHTML = ''
+        options.forEach((item, index) => {
+          const li = document.createElement('li')
+          li.className = 'tag'
+          li.innerHTML = `
+                ${item}
+                <div class="delete-btn" onclick="removeOption(${index})">×</div>
+            `
+          listEl.appendChild(li)
+        })
+      }
+
+      function addOption() {
+        const input = document.getElementById('newOption')
+        const val = input.value.trim()
+        if (val) {
+          options.push(val)
+          input.value = ''
+          // 手机上添加完收起键盘体验更好，或者保持焦点继续输入
+          // input.blur();
+          renderList()
+          drawWheel()
+        }
+      }
+
+      function removeOption(index) {
+        if (isSpinning) return
+        if (options.length <= 1) {
+          alert('不能再删啦！')
+          return
+        }
+        options.splice(index, 1)
+        renderList()
+        drawWheel()
+      }
+
+      function spin() {
+        if (isSpinning || options.length === 0) return
+
+        isSpinning = true
+        const spinBtn = document.getElementById('spinBtn')
+        spinBtn.disabled = true
+
+        const randomDegree = Math.floor(Math.random() * 360)
+        const extraSpins = 360 * 10 // 转10圈
+        const totalRotate = currentRotation + extraSpins + randomDegree
+
+        canvas.style.transform = `rotate(${totalRotate}deg)`
+        currentRotation = totalRotate
+
+        setTimeout(() => {
+          showResult(totalRotate)
+          isSpinning = false
+          spinBtn.disabled = false
+        }, 4000)
+      }
+
+      function showResult(rotation) {
+        const actualDeg = rotation % 360
+        const arcSize = 360 / options.length
+        // 修正角度计算
+        const index = Math.floor(((360 - (actualDeg % 360)) % 360) / arcSize)
+
+        document.getElementById('finalResult').innerText = options[index]
+        document.getElementById('resultModal').style.display = 'flex'
+      }
+
+      function closeModal() {
+        document.getElementById('resultModal').style.display = 'none'
+      }
+    </script>
+  </body>
+</html>
